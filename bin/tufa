@@ -10,15 +10,16 @@
 secrets=${TUFA_SECRETS_FILE?must set TUFA_SECRETS_FILE}
 log=$TUFA_SECRETS_FILE:h/tufa.log
 site=$1
+os=$(uname -s)
+if [[ $os = Darwin ]]; then clipper=pbcopy; else clipper=xclip; fi
 
-# TODO Record attempt in ${secrets:h}/tufa.log: site, timestamp
 dt="[$(date '+%FT%T')]"
 print "$dt\tattempt: $site" >> $log
 
 print 'Using Bitwarden to fetch login/password.'
 
 # Copy password to default clipboard that no one will see.
-rbw get $site |xclip -i
+rbw get $site | $clipper -i
 print '«password copied to primary»'
 
 # Print other non-password details
@@ -49,14 +50,14 @@ else secret=$(grep $'\t'$site$'\t' <<< $tufa_table | cut -f6)
      fi
      print "You have $remaining seconds remaining for TOTP code."
      # print totp: $totp
-     xclip -i -wait 300 -selection clipboard <<< $totp
+     $clipper -i -wait 300 -selection clipboard <<< $totp
      print '«totp copied to clipboard»'
      # TODO Say how long (seconds) it's good for
      sleep .1
 fi
 
 sleep .2
-rbw get --field username $site | xclip -i -wait 500 -selection clipboard
+rbw get --field username $site | $clipper -i -wait 500 -selection clipboard
 print '«username copied to clipboard»'
 
 print "$dt\tsuccess: $site" >> $log

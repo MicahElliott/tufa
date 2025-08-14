@@ -20,13 +20,13 @@ Note that [`rbw`](https://github.com/doy/rbw) is a CLI Bitwarden PWM client in
 use and it is assumed you're using [Bitwarden](https://bitwarden.com/).
 
 ```shell
-% export TUFA_SECRETS_FILE=~/.sec/tufa.tsv.gpg
+% export TUFA_SECRETS_FILE=~/.sec/tufa.tsv.gpg  # must set this
 
 % tufa <TAB>
 First unlock with: rbw unlock
 
 % rbw unlock
-password: *** (promted for master password)
+password: *** (prompted for master password)
 
 % tufa <TAB>
 -- site
@@ -42,19 +42,20 @@ Username: alicerobertson
 URI: https://www.dropbox.com
 
 Using GPG to unlock and look up Tufa code.
-...
+Enter passphrase: ...
 You have 34 seconds remaining for TOTP code.
 «totp copied to clipboard»
 «username copied to clipboard»
 ```
 
 Notice that no password or code is ever visible. The current setup uses
-`xclip` to store the password to your system clipboard, and so is never
+`xclip` (on linux) to store the password to your system clipboard, and so is never
 visible to anyone, but is middle-click pasteable. Then it stores username and
 TOTP code to your other clipboard which is then easily selected by your
 clipboard manager ([parcellite](https://github.com/rickyrockrat/parcellite) in
 my case) via hotkey. Because there was only a few seconds left in the 30s totp
-window, it grabbed the subsequent one.
+window, it grabbed the subsequent one. The activity was also logged to
+`tufa.log` that lives alongside your secrets TSV file.
 
 ## The Recipe
 
@@ -86,19 +87,25 @@ To encrypt such a file manually (without editor magic):
 % gpg --decrypt   --pinentry-mode loopback mykeys.tsv.gpg # decrypt (what tufa does)
 ```
 
-A TSV has the nice benefit that you can import it to a DB like SQLite if you
-want to do fancier things with it (eg, encrypted sync with Turso?). You can
-also easily read/edit (and even print!) the TSV, and **save it somewhere safe
-as a backup**.
+A TSV has some nice benefits:
+
+- You can **import it to a DB** like SQLite if you want to do fancier things
+  with it (eg, encrypted sync with Turso?).
+- You can also easily **read/edit and create new entries**, so tools that use
+  are dumbly simple.
+- You can concatenate your trusting loved ones' entries onto your own.
+- You can even print! the TSV, and **save it somewhere safe as a backup**.
 
 You should know that you can generate the same TOTP from any authenticator app
 if it has the same _secret key_ registered for a site. So whether you're used
-to Authy or Ente or Okta, know that you can redundantly use the same secret an
-any of those and get the same 6-digit code.
+to Authy or Ente or Okta or Duo, know that you can redundantly use the same
+secret an any of those and get the same 6-digit code. So you can use Ente on
+your phone and also `tufa` on any desktop. Point is: don't have a single point
+of failure.
 
-So the trick is to simply send any one of those 32-character (usually, though
-they vary in length) secrets through any authenticator. The tiniest (but
-powerful) CLI I can find for this is `oathtool` (90kb). So it's just a matter of:
+So the trick is to simply send any one of those 32-character secrets (though
+they can vary in length) through any authenticator. The tiniest (but powerful)
+CLI I can find for this is `oathtool` (90kb). So it's just a matter of:
 
 ```shell
 % echo 'AbCd9876...' | oathtool -b --totp -d6 -
@@ -124,17 +131,26 @@ into Ente later using `qrencode`/`timg`.
 
 ## Installation
 
+The following are tools you probably want or already have on most systems
+anyway. Note that before doing this, you should ensure that you trust your
+package-manager a lot! Installing a PWM from a somewhat opaque source
+(homebrew!) can be dangerous. So don't run a brew-installed `rbw` and offer it
+the keys to your kingdom unless you know it's legit.
+
 ### Fedora/RedHat etc
 
-``` shell
-% sudo dnf install rbw timg qrencode oathtool pwgen
+```shell
+% sudo dnf install rbw oathtool pwgen qrencode # timg
 ```
 
 ### MacOS
 
 ```shell
-% brew install oath-toolkit pinentry-mac gpg pwgen
+% brew install     rbw oath-toolkit pinentry-mac gpg pwgen qrencode # timg
 ```
+
+You may not want to install `timg` unless you really want to do terminal
+graphics stuff.
 
 ## Extra Goodies
 
