@@ -1,0 +1,64 @@
+#! /bin/zsh
+
+# print passwords from bitwarden, 2FAs from oathtool/TSV
+# See also the _pswd completion
+
+# DEPS: rbw (bitwarden), oathtool, gnupg (gpg), xclip, pwgen
+
+# TUFA_SECRETS_FILE is a TSV containing 2FA entries
+
+secrets=${TUFA_SECRETS_FILE?must set TUFA_SECRETS_FILE}
+log=$TUFA_SECRETS_FILE:h/tufa.log
+site=$1
+
+# TODO Record attempt in ${secrets:h}/tufa.log: site, timestamp
+dt="[$(date '+%FT%T')]"
+print "$dt\tattempt: $site" >> $log
+
+print 'Using Bitwarden to fetch login/password.'
+
+# Copy password to default clipboard that no one will see.
+rbw get $site |xclip -i
+print '«password copied to primary»'
+
+# Print other non-password details
+rbw get --full $site |sed -n '2,$p'
+
+print '\nUsing GPG to unlock and look up Tufa code.'
+
+# print -- gpg --quiet --decrypt --pinentry-mode loopback $secrets
+# gpg --quiet --decrypt --pinentry-mode loopback $secrets
+tufa_table=$(gpg --quiet --decrypt --pinentry-mode loopback $secrets)
+if   [[ $? != 0 ]]
+then print "Failed to decrypt $secrets file"
+     print "$dt\tgpg-fail: $site" >> $log
+     exit
+fi
+# tufa_table=$(cat $secrets)
+if   [[ ! -f $secrets ]]
+then print "File TUFA_SECRETS_FILE does not exist; skipping 2FA."
+elif ! grep -q $'\t'$site$'\t' <<< $tufa_table
+then print "Tufa entry not present in $TUFA_SECRETS_FILE; skipping 2FA."
+else secret=$(grep $'\t'$site$'\t' <<< $tufa_table | cut -f6)
+     totps=( $(oathtool -w1 -b --totp -d6 - <<< $secret) ) # grab 2 TOTPs
+     # Select which totp based on how much time till expiration
+     integer remaining=$(( 30 - $(date +%s) % 30 ))
+     if (( remaining > 10 ))
+     then totp=$totps[1]
+     else totp=$totps[2] remaining+=30
+     fi
+     print "You have $remaining seconds remaining for TOTP code."
+     # print totp: $totp
+     xclip -i -wait 300 -selection clipboard <<< $totp
+     print '«totp copied to clipboard»'
+     # TODO Say how long (seconds) it's good for
+     sleep .1
+fi
+
+sleep .2
+rbw get --field username $site | xclip -i -wait 500 -selection clipboard
+print '«username copied to clipboard»'
+
+print "$dt\tsuccess: $site" >> $log
+
+# date '+%T'

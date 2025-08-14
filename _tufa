@@ -1,0 +1,12 @@
+#compdef tufa
+
+# Complete passsword manager entries
+
+local cmds
+
+if ! rbw unlocked >/dev/null 2>&1
+then print 'First unlock with: rbw unlock'
+     return 1
+else cmds=( $(rbw list) )
+     _describe 'site/app' cmds
+fi
