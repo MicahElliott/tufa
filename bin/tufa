@@ -5,13 +5,14 @@
 
 # DEPS: rbw (bitwarden), oathtool, gnupg (gpg), xclip, pwgen
 
-# TUFA_SECRETS_FILE is a TSV containing 2FA entries
+# TUFA_TSV is a TSV containing 2FA entries
 
-secrets=${TUFA_SECRETS_FILE?must set TUFA_SECRETS_FILE}
+secrets=${TUFA_TSV?must set TUFA_TSV}
 log=$TUFA_SECRETS_FILE:h/tufa.log
 site=$1
 os=$(uname -s)
 if [[ $os = Darwin ]]; then clipper=pbcopy; else clipper=xclip; fi
+# pbcopy ignores unknown flags so just pass xclip's to it; whatever
 
 dt="[$(date '+%FT%T')]"
 print "$dt\tattempt: $site" >> $log
@@ -37,9 +38,9 @@ then print "Failed to decrypt $secrets file"
 fi
 # tufa_table=$(cat $secrets)
 if   [[ ! -f $secrets ]]
-then print "File TUFA_SECRETS_FILE does not exist; skipping 2FA."
+then print "File TUFA_TSV does not exist; skipping 2FA."
 elif ! grep -q $'\t'$site$'\t' <<< $tufa_table
-then print "Tufa entry not present in $TUFA_SECRETS_FILE; skipping 2FA."
+then print "Tufa entry not present in $TUFA_TSV; skipping 2FA."
 else secret=$(grep $'\t'$site$'\t' <<< $tufa_table | cut -f6)
      totps=( $(oathtool -w1 -b --totp -d6 - <<< $secret) ) # grab 2 TOTPs
      # Select which totp based on how much time till expiration
