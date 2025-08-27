@@ -11,7 +11,12 @@ secrets=${TUFA_TSV?must set TUFA_TSV}
 log=$TUFA_SECRETS_FILE:h/tufa.log
 site=$1
 os=$(uname -s)
-if [[ $os = Darwin ]]; then clipper=pbcopy; else clipper=xclip; fi
+if [[ $os = Darwin ]]
+then clipper=pbcopy
+     notif="terminal-notifier -message tufa -title 'Don’t forget to log out of $site when done!'"
+else clipper=xclip
+     notif="notify-send -u critical tufa 'Don’t forget to log out of $site when done!'"
+fi
 # pbcopy ignores unknown flags so just pass xclip's to it; whatever
 
 dt="[$(date '+%FT%T')]"
@@ -21,46 +26,17 @@ print 'Using Bitwarden to fetch login/password.'
 
 # Copy password to default clipboard that no one will see.
 # TODO could be no entry in bw but 2fa still wanted to proceed, so condition next blocks on this
-rbw get $site | $clipper -i -sensitive
+# rbw get $site | $clipper -i -sensitive
+rbw get $site | $clipper -i
 print '«password copied to primary»'
 
 # Print other non-password details
 rbw get --full $site |sed -n '2,$p'
 
-print '\nUsing GPG to unlock and look up Tufa code.'
-
-# print -- gpg --quiet --decrypt --pinentry-mode loopback $secrets
-# gpg --quiet --decrypt --pinentry-mode loopback $secrets
-tufa_table=$(gpg --quiet --decrypt --pinentry-mode loopback $secrets)
-if   [[ $? != 0 ]]
-then print "Failed to decrypt $secrets file"
-     print "$dt\tgpg-fail: $site" >> $log
-     exit
-fi
-# tufa_table=$(cat $secrets)
-if   [[ ! -f $secrets ]]
-then print "File TUFA_TSV does not exist; skipping 2FA."
-elif ! grep -q $'\t'$site$'\t' <<< $tufa_table
-then print "Tufa entry not present in $TUFA_TSV; skipping 2FA."
-else secret=$(grep $'\t'$site$'\t' <<< $tufa_table | cut -f6)
-     totps=( $(oathtool -w1 -b --totp -d6 - <<< $secret) ) # grab 2 TOTPs
-     # Select which totp based on how much time till expiration
-     integer remaining=$(( 30 - $(date +%s) % 30 ))
-     if (( remaining > 10 ))
-     then totp=$totps[1]
-     else totp=$totps[2] remaining+=30
-     fi
-     print "You have $remaining seconds remaining for TOTP code."
-     # print totp: $totp
-     # TODO could clear this entry at end too
-     $clipper -i -wait 300 -selection clipboard <<< $totp
-     print '«totp copied to clipboard»'
-     sleep .1
-fi
-remaining=${remaining:-30}
 
 sleep .2
-rbw get --field username $site | $clipper -i -wait 500 -selection clipboard
+# rbw get --field username $site | $clipper -i -wait 500 -selection clipboard
+rbw get --field username $site | $clipper -i -selection clipboard
 print '«username copied to clipboard»'
 
 bwurl=$(rbw get --field uris $site)
@@ -75,6 +51,40 @@ then print
      print
 fi
 
+print
+if read -qs '?Need 2FA? [y/n] '
+then print '\nUsing GPG to unlock and look up Tufa code.'
+     # print -- gpg --quiet --decrypt --pinentry-mode loopback $secrets
+     # gpg --quiet --decrypt --pinentry-mode loopback $secrets
+     tufa_table=$(gpg --quiet --decrypt --pinentry-mode loopback $secrets)
+     if   [[ $? != 0 ]]
+     then print "Failed to decrypt $secrets file"
+          print "$dt\tgpg-fail: $site" >> $log
+          exit
+     fi
+     # tufa_table=$(cat $secrets)
+     if   [[ ! -f $secrets ]]
+     then print "File TUFA_TSV does not exist; skipping 2FA."
+     elif ! grep -q $'\t'$site$'\t' <<< $tufa_table
+     then print "Tufa entry not present in $TUFA_TSV; skipping 2FA."
+     else secret=$(grep $'\t'$site$'\t' <<< $tufa_table | cut -f6)
+          totps=( $(oathtool -w1 -b --totp -d6 - <<< $secret) ) # grab 2 TOTPs
+          # Select which totp based on how much time till expiration
+          integer remaining=$(( 30 - $(date +%s) % 30 ))
+          if (( remaining > 10 ))
+          then totp=$totps[1]
+          else totp=$totps[2] remaining+=30
+          fi
+          print "You have $remaining seconds remaining for TOTP code."
+          # print totp: $totp
+          # TODO could clear this entry at end too
+          $clipper -i -selection clipboard <<< $totp
+          print '«totp copied to clipboard»'
+          sleep .1
+     fi
+     remaining=${remaining:-30}
+fi
+
 print "$dt\tsuccess: $site" >> $log
 
 print "\nWaiting $remaining seconds to clear clipboard...."
@@ -82,7 +92,4 @@ sleep $remaining
 $clipper -i -rmlastnl <<<''
 print 'TOTP expired, clipboard cleared.'
 
-# TODO schedule this as message to be a future notify popup in 10m
-print "\nDon't forget to log out when done!"
-
-# date '+%T'
+at -M now +5 minutes <<< "$notif" 2>/dev/null

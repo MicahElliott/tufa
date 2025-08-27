@@ -59,13 +59,15 @@ You have 34 seconds remaining for TOTP code.
 ```
 
 Notice that no password or code is ever visible. The current setup uses
-`xclip` (on linux) to store the password to your system clipboard, and so is never
-visible to anyone, but is middle-click pasteable. Then it stores username and
-TOTP code to your other clipboard which is then easily selected by your
-clipboard manager ([parcellite](https://github.com/rickyrockrat/parcellite) in
-my case) via hotkey. Because there was only a few seconds left in the 30s totp
-window, it grabbed the subsequent one. The activity was also logged to
-`tufa.log` that lives alongside your secrets TSV file.
+`xclip` (on linux) to store the password to your system clipboard, and so is
+never visible to anyone, but is middle-click pasteable. Then it stores
+username and TOTP code to your other clipboard which is then easily selected
+by your clipboard manager
+([ClipIt](https://github.com/CristianHenzel/ClipIt) in my case) via
+hotkey. Because there was only a few seconds left in the 30s totp window, it
+grabbed the subsequent one. The activity was also logged to `tufa.log` that
+lives alongside your secrets TSV file. And a popup notification is sent a few
+minutes later reminding us to log out.
 
 ## The Recipe
 
