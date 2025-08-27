@@ -1,10 +1,11 @@
 # Tufa: Recipes for DIY 2FA etc via CLI
 
 Light-weight Do-It-Yourself Two-Factor Authenticator (2FA, from spreadsheet),
-Password-Manager (PWM), etc, recipes for terminal-based workflows.
+Password-Manager (PWM), plugin-less password filler, etc, recipes for
+terminal-based workflows.
 
-It's a "tufa" because it's also a "two-fer-one": PWM and 2FA all-in-one flow.
-And that's pretty OK to do, as explained below.
+It's a "tufa" because it's also a "two-fer-one": PWM and 2FA separated but
+all-in-one flow. And that's pretty OK to do, as explained below.
 
 Install a couple tiny tools with your package-manager and you get a simple
 and secure 2FA CLI (and PWM) setup. All in a few minutes.
@@ -29,6 +30,7 @@ client in use, and it is assumed you're using
 
 ```shell
 % export TUFA_TSV=~/.sec/tufa.tsv.gpg  # must set this
+# or set it to something like: ~/catpics/2019/fluffy42.jpg
 
 % tufa <TAB>
 First unlock with: rbw unlock
@@ -213,3 +215,8 @@ that is a lot like `tufa`. I used it and would've adopted it. But it's 2500
 lines of Go plus deps (5MB), and I usually prefer tiny shell scripts/recipes
 over new tools. Its dump/export feature is YAML-based instead of Tufa's TSV,
 but is the same idea.
+
+## More CLI Tools Resources
+
+- [zxcvbn](https://github.com/awaitlink/zxcvbn-cli) ::
+  A simple CLI tool to check password strength using zxcvbn

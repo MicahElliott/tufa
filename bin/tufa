@@ -20,7 +20,8 @@ print "$dt\tattempt: $site" >> $log
 print 'Using Bitwarden to fetch login/password.'
 
 # Copy password to default clipboard that no one will see.
-rbw get $site | $clipper -i
+# TODO could be no entry in bw but 2fa still wanted to proceed, so condition next blocks on this
+rbw get $site | $clipper -i -sensitive
 print '«password copied to primary»'
 
 # Print other non-password details
@@ -51,16 +52,37 @@ else secret=$(grep $'\t'$site$'\t' <<< $tufa_table | cut -f6)
      fi
      print "You have $remaining seconds remaining for TOTP code."
      # print totp: $totp
+     # TODO could clear this entry at end too
      $clipper -i -wait 300 -selection clipboard <<< $totp
      print '«totp copied to clipboard»'
-     # TODO Say how long (seconds) it's good for
      sleep .1
 fi
+remaining=${remaining:-30}
 
 sleep .2
 rbw get --field username $site | $clipper -i -wait 500 -selection clipboard
 print '«username copied to clipboard»'
 
+bwurl=$(rbw get --field uris $site)
+if   [[ -n $bwurl ]]
+then print
+     # TODO check if "tags" matches "bank" and add --private-window ??
+     read -sk1 "?Open $BROWSER at $bwurl [y/p/n]? "
+     # Some browsers somewhat ignore bogus opts
+     # TODO add browser distinction to do --incognito if chrome, etc
+     [[ $REPLY = 'p' ]] && $=BROWSER --private-window  $bwurl --incognito # but this works for both
+     [[ $REPLY = 'y' ]] && $=BROWSER $bwurl
+     print
+fi
+
 print "$dt\tsuccess: $site" >> $log
+
+print "\nWaiting $remaining seconds to clear clipboard...."
+sleep $remaining
+$clipper -i -rmlastnl <<<''
+print 'TOTP expired, clipboard cleared.'
+
+# TODO schedule this as message to be a future notify popup in 10m
+print "\nDon't forget to log out when done!"
 
 # date '+%T'
